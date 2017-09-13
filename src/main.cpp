@@ -52,6 +52,10 @@ int main(int argc, char *argv[]) {
 
   cGemma.Assign(argc, argv, cPar);
 
+  if (cPar.faster_lmm_d == true){
+    system("faster_lmm_d");
+  }
+
   ifstream check_dir((cPar.path_out).c_str());
   if (!check_dir) {
     mkdir((cPar.path_out).c_str(), S_IRWXU | S_IRGRP | S_IROTH);

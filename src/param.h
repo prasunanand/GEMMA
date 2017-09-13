@@ -116,6 +116,7 @@ public:
   bool mode_strict = false; // exit on some data checks
   bool mode_silence;
   bool mode_debug = false;
+  bool faster_lmm_d = false;
   uint issue; // enable tests for issue on github tracker
 
   int a_mode; // Analysis mode, 1/2/3/4 for Frequentist tests

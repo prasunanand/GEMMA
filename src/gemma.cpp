@@ -1598,6 +1598,8 @@ void GEMMA::Assign(int argc, char **argv, PARAM &cPar) {
       cPar.mode_check = false;
     } else if (strcmp(argv[i], "-strict") == 0) {
       cPar.mode_strict = true;
+    } else if (strcmp(argv[i], "-faster_lmm_d") == 0) {
+      cPar.faster_lmm_d = true;
     } else {
       cout << "error! unrecognized option: " << argv[i] << endl;
       cPar.error = true;
