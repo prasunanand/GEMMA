@@ -30,7 +30,6 @@
 #include "gsl/gsl_linalg.h"
 #include "gsl/gsl_matrix.h"
 #include "gsl/gsl_vector.h"
-#include "gsl/gsl_version.h"
 
 #include "bslmm.h"
 #include "bslmmdap.h"
@@ -328,7 +327,7 @@ void GEMMA::PrintHelp(size_t option) {
          << "as weights for residuals---each weight corresponds to an "
          << "individual, in which a high weight corresponds to high "
          << "residual error variance for this individual (similar in "
-	 << "format to phenotype file)"
+   << "format to phenotype file)"
          << endl;
     cout << "          format: variable for individual 1" << endl;
     cout << "                  variable for individual 2" << endl;
@@ -551,27 +550,27 @@ void GEMMA::PrintHelp(size_t option) {
   if (option == 9) {
     cout << " MULTIVARIATE LINEAR MIXED MODEL OPTIONS" << endl;
     cout << " -n [pheno cols...] - range of phenotypes" << endl;
-    cout << " -pnr				     "
+    cout << " -pnr             "
          << " specify the pvalue threshold to use the Newton-Raphson's method "
             "(default 0.001)"
          << endl;
-    cout << " -emi				     "
+    cout << " -emi             "
          << " specify the maximum number of iterations for the PX-EM method in "
             "the null (default 10000)"
          << endl;
-    cout << " -nri				     "
+    cout << " -nri             "
          << " specify the maximum number of iterations for the "
             "Newton-Raphson's method in the null (default 100)"
          << endl;
-    cout << " -emp				     "
+    cout << " -emp             "
          << " specify the precision for the PX-EM method in the null (default "
             "0.0001)"
          << endl;
-    cout << " -nrp				     "
+    cout << " -nrp             "
          << " specify the precision for the Newton-Raphson's method in the "
             "null (default 0.0001)"
          << endl;
-    cout << " -crt				     "
+    cout << " -crt             "
          << " specify to output corrected pvalues for these pvalues that are "
             "below the -pnr threshold"
          << endl;
@@ -580,7 +579,7 @@ void GEMMA::PrintHelp(size_t option) {
 
   if (option == 10) {
     cout << " MULTI-LOCUS ANALYSIS OPTIONS" << endl;
-    cout << " -bslmm	  [num]			 "
+    cout << " -bslmm    [num]      "
          << " specify analysis options (default 1)." << endl;
     cout << "          options: 1: BSLMM" << endl;
     cout << "                   2: standard ridge regression/GBLUP (no mcmc)"
@@ -592,7 +591,7 @@ void GEMMA::PrintHelp(size_t option) {
         << endl;
     cout << "                   5: BSLMM with DAP for Fine Mapping" << endl;
 
-    cout << " -ldr	  [num]			 "
+    cout << " -ldr    [num]      "
          << " specify analysis options (default 1)." << endl;
     cout << "          options: 1: LDR" << endl;
 
@@ -659,7 +658,7 @@ void GEMMA::PrintHelp(size_t option) {
 
   if (option == 11) {
     cout << " PREDICTION OPTIONS" << endl;
-    cout << " -predict  [num]			 "
+    cout << " -predict  [num]      "
          << " specify prediction options (default 1)." << endl;
     cout << "          options: 1: predict for individuals with missing "
             "phenotypes"
@@ -673,7 +672,7 @@ void GEMMA::PrintHelp(size_t option) {
 
   if (option == 12) {
     cout << " CALC CORRELATION OPTIONS" << endl;
-    cout << " -calccor       			 " << endl;
+    cout << " -calccor             " << endl;
     cout << " -windowbp       [num]            "
          << " specify the window size based on bp (default 1000000; 1Mb)"
          << endl;
@@ -1616,9 +1615,56 @@ void GEMMA::Assign(int argc, char **argv, PARAM &cPar) {
   return;
 }
 
-void GEMMA::BatchRun(PARAM &cPar) {
+void GEMMA::kinship(PARAM &cPar) {
   clock_t time_begin, time_start;
   time_begin = clock();
+  cout << "Mode is";
+  cout << cPar.a_mode;
+
+  // Read Files.
+  cout << "Reading Files ... " << endl;
+  cPar.ReadFiles();
+  if (cPar.error == true) {
+    cout << "error! fail to read files. " << endl;
+    return;
+  }
+  cPar.CheckData();
+
+    // Generate Kinship matrix (optionally using LOCO)
+  if (cPar.a_mode == 21 || cPar.a_mode == 22) {
+    cout << "Calculating Relatedness Matrix ... " << endl;
+
+    gsl_matrix *G = gsl_matrix_alloc(cPar.ni_total, cPar.ni_total);
+    enforce_msg(G, "allocate G"); // just to be sure
+
+    time_start = clock();
+    cPar.CalcKin(G);
+
+    cPar.time_G = (clock() - time_start) / (double(CLOCKS_PER_SEC) * 60.0);
+    if (cPar.error == true) {
+      cout << "error! fail to calculate relatedness matrix. " << endl;
+      return;
+    }
+
+    // Now we have the Kinship matrix test it
+    validate_K(G,cPar.mode_check,cPar.mode_strict);
+
+    if (cPar.a_mode == 21) {
+      cPar.WriteMatrix(G, "cXX");
+    } else {
+      cPar.WriteMatrix(G, "sXX");
+    }
+
+    gsl_matrix_free(G);
+  }
+}
+
+void GEMMA::faster_lmm_d(PARAM & cPar){
+
+  clock_t time_begin, time_start;
+  time_begin = clock();
+  cout << "HELLO";
+  cout << cPar.a_mode;
 
   // Read Files.
   cout << "Reading Files ... " << endl;
@@ -1633,242 +1679,343 @@ void GEMMA::BatchRun(PARAM &cPar) {
     return;
   }
 
-  // Prediction for bslmm
-  if (cPar.a_mode == 41 || cPar.a_mode == 42) {
-    gsl_vector *y_prdt;
+  if (cPar.a_mode == 1 || cPar.a_mode == 2 || cPar.a_mode == 3 || cPar.a_mode == 4 || cPar.a_mode == 5 ||cPar.a_mode == 31) { // Fit LMM or mvLMM or eigen
 
-    y_prdt = gsl_vector_alloc(cPar.ni_total - cPar.ni_test);
+    //ni_test and ni_ph are passed
+    // create Y, w, b. se_b. U. UtW. uTy, EVAL, env weight
+    // CopyCvtPhen(W, Y, 0)  => load cvt AND phen
+    // copy gxe too env
+    // read kinship matrix G from file
+    // centre G
+    // read weights
 
-    // set to zero
-    gsl_vector_set_zero(y_prdt);
+    gsl_matrix *Y = gsl_matrix_alloc(cPar.ni_test, cPar.n_ph);
+    enforce_msg(Y, "allocate Y"); // just to be sure
+    gsl_matrix *W = gsl_matrix_alloc(Y->size1, cPar.n_cvt);
+    gsl_matrix *B = gsl_matrix_alloc(Y->size2, W->size2); // B is a d by c
+                                                          // matrix
+    gsl_matrix *se_B = gsl_matrix_alloc(Y->size2, W->size2);
+    gsl_matrix *G = gsl_matrix_alloc(Y->size1, Y->size1);
+    gsl_matrix *U = gsl_matrix_alloc(Y->size1, Y->size1);
+    gsl_matrix *UtW = gsl_matrix_calloc(Y->size1, W->size2);
+    gsl_matrix *UtY = gsl_matrix_calloc(Y->size1, Y->size2);
+    gsl_vector *eval = gsl_vector_calloc(Y->size1);
+    gsl_vector *env = gsl_vector_alloc(Y->size1);
+    gsl_vector *weight = gsl_vector_alloc(Y->size1);
+    assert_issue(cPar.issue == 26, UtY->data[0] == 0.0);
 
-    PRDT cPRDT;
-    cPRDT.CopyFromParam(cPar);
+    // set covariates matrix W and phenotype matrix Y
+    // an intercept should be included in W,
+    cPar.CopyCvtPhen(W, Y, 0);
+    if (!cPar.file_gxe.empty()) {
+      cPar.CopyGxe(env);
+    }
 
-    // add breeding value if needed
-    if (!cPar.file_kin.empty() && !cPar.file_ebv.empty()) {
-      cout << "Adding Breeding Values ... " << endl;
+    FILE* myfile = fopen ("pheno.dat", "wb");
+    gsl_matrix_fprintf(myfile, Y, "%f");
+    fclose(myfile);
 
-      gsl_matrix *G = gsl_matrix_alloc(cPar.ni_total, cPar.ni_total);
-      gsl_vector *u_hat = gsl_vector_alloc(cPar.ni_test);
+    FILE* myfile2 = fopen ("covar.dat", "wb");
+    gsl_matrix_fprintf(myfile2, W, "%f");
+    fclose(myfile2);
 
-      // read kinship matrix and set u_hat
-      vector<int> indicator_all;
-      size_t c_bv = 0;
-      for (size_t i = 0; i < cPar.indicator_idv.size(); i++) {
-        indicator_all.push_back(1);
-        if (cPar.indicator_bv[i] == 1) {
-          gsl_vector_set(u_hat, c_bv, cPar.vec_bv[i]);
-          c_bv++;
-        }
-      }
 
-      ReadFile_kin(cPar.file_kin, indicator_all, cPar.mapID2num, cPar.k_mode,
-                   cPar.error, G);
+
+    // read relatedness matrix G
+    if (!(cPar.file_kin).empty()) {
+      ReadFile_kin(cPar.file_kin, cPar.indicator_idv, cPar.mapID2num,
+                   cPar.k_mode, cPar.error, G);
       if (cPar.error == true) {
         cout << "error! fail to read kinship/relatedness file. " << endl;
         return;
       }
 
-      // read u
-      cPRDT.AddBV(G, u_hat, y_prdt);
+      // center matrix G
+      CenterMatrix(G);
+      validate_K(G,cPar.mode_check,cPar.mode_strict);
 
-      gsl_matrix_free(G);
-      gsl_vector_free(u_hat);
-    }
-
-    // add beta
-    if (!cPar.file_bfile.empty()) {
-      cPRDT.AnalyzePlink(y_prdt);
-    } else {
-      cPRDT.AnalyzeBimbam(y_prdt);
-    }
-
-    // add mu
-    gsl_vector_add_constant(y_prdt, cPar.pheno_mean);
-
-    // convert y to probability if needed
-    if (cPar.a_mode == 42) {
-      double d;
-      for (size_t i = 0; i < y_prdt->size; i++) {
-        d = gsl_vector_get(y_prdt, i);
-        d = gsl_cdf_gaussian_P(d, 1.0);
-        gsl_vector_set(y_prdt, i, d);
+      // is residual weights are provided, then
+      if (!cPar.file_weight.empty()) {
+        cPar.CopyWeight(weight);
+        double d, wi, wj;
+        for (size_t i = 0; i < G->size1; i++) {
+          wi = gsl_vector_get(weight, i);
+          for (size_t j = i; j < G->size2; j++) {
+            wj = gsl_vector_get(weight, j);
+            d = gsl_matrix_get(G, i, j);
+            if (wi <= 0 || wj <= 0) {
+              d = 0;
+            } else {
+              d /= sqrt(wi * wj);
+            }
+            gsl_matrix_set(G, i, j, d);
+            if (j != i) {
+              gsl_matrix_set(G, j, i, d);
+            }
+          }
+        }
       }
+
+      system(("faster_lmm_d --pheno="+ cPar.file_pheno +" --geno=data/rqtl/recla_geno.csv --kinship=data/rqtl/recla_kinship.csv --test-kinship=true --cmd=rqtl ").c_str());
+
+      // eigen-decomposition and calculate trace_G
+      cout << "Start Eigen-Decomposition..." << endl;
+      time_start = clock();
+
+      if (cPar.a_mode == 31) {
+        cPar.trace_G = EigenDecomp_Zeroed(G, U, eval, 1);
+      } else {
+        cPar.trace_G = EigenDecomp_Zeroed(G, U, eval, 0);
+      }
+
+      if (!cPar.file_weight.empty()) {
+        double wi;
+        for (size_t i = 0; i < U->size1; i++) {
+          wi = gsl_vector_get(weight, i);
+          if (wi <= 0) {
+            wi = 0;
+          } else {
+            wi = sqrt(wi);
+          }
+          gsl_vector_view Urow = gsl_matrix_row(U, i);
+          gsl_vector_scale(&Urow.vector, wi);
+        }
+      }
+
+      cPar.time_eigen =
+          (clock() - time_start) / (double(CLOCKS_PER_SEC) * 60.0);
+    } else {
+      ReadFile_eigenU(cPar.file_ku, cPar.error, U);
+      if (cPar.error == true) {
+        cout << "error! fail to read the U file. " << endl;
+        return;
+      }
+
+      ReadFile_eigenD(cPar.file_kd, cPar.error, eval);
+      if (cPar.error == true) {
+        cout << "error! fail to read the D file. " << endl;
+        return;
+      }
+
+      cPar.trace_G = 0.0;
+      for (size_t i = 0; i < eval->size; i++) {
+        if (gsl_vector_get(eval, i) < 1e-10) {
+          gsl_vector_set(eval, i, 0);
+        }
+        cPar.trace_G += gsl_vector_get(eval, i);
+      }
+      cPar.trace_G /= (double)eval->size;
     }
 
-    cPRDT.CopyToParam(cPar);
+    if (cPar.a_mode == 31) {
+      cPar.WriteMatrix(U, "eigenU");
+      cPar.WriteVector(eval, "eigenD");
+    } else if (!cPar.file_gene.empty()) {
+      // calculate UtW and Uty
+      CalcUtX(U, W, UtW);
+      CalcUtX(U, Y, UtY);
 
-    cPRDT.WriteFiles(y_prdt);
+      assert_issue(cPar.issue == 26, ROUND(UtY->data[0]) == -16.6143);
 
-    gsl_vector_free(y_prdt);
-  }
+      LMM cLmm;
+      cLmm.CopyFromParam(cPar);
 
-  // Prediction with kinship matrix only; for one or more phenotypes
-  if (cPar.a_mode == 43) {
-    // first, use individuals with full phenotypes to obtain estimates of Vg and
-    // Ve
-    gsl_matrix *Y = gsl_matrix_alloc(cPar.ni_test, cPar.n_ph);
-    gsl_matrix *W = gsl_matrix_alloc(Y->size1, cPar.n_cvt);
-    gsl_matrix *G = gsl_matrix_alloc(Y->size1, Y->size1);
-    gsl_matrix *U = gsl_matrix_alloc(Y->size1, Y->size1);
-    gsl_matrix *UtW = gsl_matrix_alloc(Y->size1, W->size2);
-    gsl_matrix *UtY = gsl_matrix_alloc(Y->size1, Y->size2);
-    gsl_vector *eval = gsl_vector_alloc(Y->size1);
-
-    gsl_matrix *Y_full = gsl_matrix_alloc(cPar.ni_cvt, cPar.n_ph);
-    gsl_matrix *W_full = gsl_matrix_alloc(Y_full->size1, cPar.n_cvt);
-
-    // set covariates matrix W and phenotype matrix Y
-    // an intercept should be included in W,
-    cPar.CopyCvtPhen(W, Y, 0);
-    cPar.CopyCvtPhen(W_full, Y_full, 1);
-
-    gsl_matrix *Y_hat = gsl_matrix_alloc(Y_full->size1, cPar.n_ph);
-    gsl_matrix *G_full = gsl_matrix_alloc(Y_full->size1, Y_full->size1);
-    gsl_matrix *H_full = gsl_matrix_alloc(Y_full->size1 * Y_hat->size2,
-                                          Y_full->size1 * Y_hat->size2);
-
-    // read relatedness matrix G, and matrix G_full
-    ReadFile_kin(cPar.file_kin, cPar.indicator_idv, cPar.mapID2num, cPar.k_mode,
-                 cPar.error, G);
-    if (cPar.error == true) {
-      cout << "error! fail to read kinship/relatedness file. " << endl;
-      return;
-    }
-    // This is not so elegant. Reads twice to select on idv and then cvt
-    ReadFile_kin(cPar.file_kin, cPar.indicator_cvt, cPar.mapID2num, cPar.k_mode,
-                 cPar.error, G_full);
-    if (cPar.error == true) {
-      cout << "error! fail to read kinship/relatedness file. " << endl;
-      return;
-    }
-
-    // center matrix G
-    CenterMatrix(G);
-    CenterMatrix(G_full);
-    validate_K(G,cPar.mode_check,cPar.mode_strict);
-
-    // eigen-decomposition and calculate trace_G
-    cout << "Start Eigen-Decomposition..." << endl;
-    time_start = clock();
-    cPar.trace_G = EigenDecomp_Zeroed(G, U, eval, 0);
-    cPar.time_eigen = (clock() - time_start) / (double(CLOCKS_PER_SEC) * 60.0);
-
-    // calculate UtW and Uty
-    CalcUtX(U, W, UtW);
-    CalcUtX(U, Y, UtY);
-
-    // calculate variance component and beta estimates
-    // and then obtain predicted values
-    if (cPar.n_ph == 1) {
-      gsl_vector *beta = gsl_vector_alloc(W->size2);
-      gsl_vector *se_beta = gsl_vector_alloc(W->size2);
-
-      double lambda, logl, vg, ve;
+      gsl_vector_view Y_col = gsl_matrix_column(Y, 0);
       gsl_vector_view UtY_col = gsl_matrix_column(UtY, 0);
 
-      // obtain estimates
-      CalcLambda('R', eval, UtW, &UtY_col.vector, cPar.l_min, cPar.l_max,
-                 cPar.n_region, lambda, logl);
-      CalcLmmVgVeBeta(eval, UtW, &UtY_col.vector, lambda, vg, ve, beta,
-                      se_beta);
+      cLmm.AnalyzeGene(U, eval, UtW, &UtY_col.vector, W,
+                       &Y_col.vector); // y is the predictor, not the phenotype
 
-      cout << "REMLE estimate for vg in the null model = " << vg << endl;
-      cout << "REMLE estimate for ve in the null model = " << ve << endl;
-      cPar.vg_remle_null = vg;
-      cPar.ve_remle_null = ve;
-
-      // obtain Y_hat from fixed effects
-      gsl_vector_view Yhat_col = gsl_matrix_column(Y_hat, 0);
-      gsl_blas_dgemv(CblasNoTrans, 1.0, W_full, beta, 0.0, &Yhat_col.vector);
-
-      // obtain H
-      gsl_matrix_set_identity(H_full);
-      gsl_matrix_scale(H_full, ve);
-      gsl_matrix_scale(G_full, vg);
-      gsl_matrix_add(H_full, G_full);
-
-      // free matrices
-      gsl_vector_free(beta);
-      gsl_vector_free(se_beta);
+      cLmm.WriteFiles();
+      cLmm.CopyToParam(cPar);
     } else {
-      gsl_matrix *Vg = gsl_matrix_alloc(cPar.n_ph, cPar.n_ph);
-      gsl_matrix *Ve = gsl_matrix_alloc(cPar.n_ph, cPar.n_ph);
-      gsl_matrix *B = gsl_matrix_alloc(cPar.n_ph, W->size2);
-      gsl_matrix *se_B = gsl_matrix_alloc(cPar.n_ph, W->size2);
+      // calculate UtW and Uty
+      CalcUtX(U, W, UtW);
+      CalcUtX(U, Y, UtY);
+      assert_issue(cPar.issue == 26, ROUND(UtY->data[0]) == -16.6143);
 
-      // obtain estimates
-      CalcMvLmmVgVeBeta(eval, UtW, UtY, cPar.em_iter, cPar.nr_iter,
-                        cPar.em_prec, cPar.nr_prec, cPar.l_min, cPar.l_max,
-                        cPar.n_region, Vg, Ve, B, se_B);
+      // calculate REMLE/MLE estimate and pve for univariate model
+      if (cPar.n_ph == 1) { // one phenotype
+        gsl_vector_view beta = gsl_matrix_row(B, 0);
+        gsl_vector_view se_beta = gsl_matrix_row(se_B, 0);
+        gsl_vector_view UtY_col = gsl_matrix_column(UtY, 0);
 
-      cout << "REMLE estimate for Vg in the null model: " << endl;
-      for (size_t i = 0; i < Vg->size1; i++) {
-        for (size_t j = 0; j <= i; j++) {
-          cout << tab(j) << gsl_matrix_get(Vg, i, j);
+        assert_issue(cPar.issue == 26, ROUND(UtY->data[0]) == -16.6143);
+
+        CalcLambda('L', eval, UtW, &UtY_col.vector, cPar.l_min, cPar.l_max,
+                   cPar.n_region, cPar.l_mle_null, cPar.logl_mle_H0);
+        assert(!std::isnan(UtY->data[0]));
+        assert(!std::isnan(B->data[0]));
+        assert(!std::isnan(se_B->data[0]));
+
+        CalcLmmVgVeBeta(eval, UtW, &UtY_col.vector, cPar.l_mle_null,
+                        cPar.vg_mle_null, cPar.ve_mle_null, &beta.vector,
+                        &se_beta.vector);
+
+        assert(!std::isnan(UtY->data[0]));
+        assert(!std::isnan(B->data[0]));
+        assert(!std::isnan(se_B->data[0]));
+
+        cPar.beta_mle_null.clear();
+        cPar.se_beta_mle_null.clear();
+        for (size_t i = 0; i < B->size2; i++) {
+          cPar.beta_mle_null.push_back(gsl_matrix_get(B, 0, i));
+          cPar.se_beta_mle_null.push_back(gsl_matrix_get(se_B, 0, i));
         }
-        cout << endl;
-      }
-      cout << "REMLE estimate for Ve in the null model: " << endl;
-      for (size_t i = 0; i < Ve->size1; i++) {
-        for (size_t j = 0; j <= i; j++) {
-          cout << tab(j) << gsl_matrix_get(Ve, i, j);
+        assert(!std::isnan(UtY->data[0]));
+        assert(!std::isnan(B->data[0]));
+        assert(!std::isnan(se_B->data[0]));
+        assert(!std::isnan(cPar.beta_mle_null.front()));
+        assert(!std::isnan(cPar.se_beta_mle_null.front()));
+
+        CalcLambda('R', eval, UtW, &UtY_col.vector, cPar.l_min, cPar.l_max,
+                   cPar.n_region, cPar.l_remle_null, cPar.logl_remle_H0);
+        CalcLmmVgVeBeta(eval, UtW, &UtY_col.vector, cPar.l_remle_null,
+                        cPar.vg_remle_null, cPar.ve_remle_null, &beta.vector,
+                        &se_beta.vector);
+
+        cPar.beta_remle_null.clear();
+        cPar.se_beta_remle_null.clear();
+        for (size_t i = 0; i < B->size2; i++) {
+          cPar.beta_remle_null.push_back(gsl_matrix_get(B, 0, i));
+          cPar.se_beta_remle_null.push_back(gsl_matrix_get(se_B, 0, i));
         }
-        cout << endl;
-      }
-      cPar.Vg_remle_null.clear();
-      cPar.Ve_remle_null.clear();
-      for (size_t i = 0; i < Vg->size1; i++) {
-        for (size_t j = i; j < Vg->size2; j++) {
-          cPar.Vg_remle_null.push_back(gsl_matrix_get(Vg, i, j));
-          cPar.Ve_remle_null.push_back(gsl_matrix_get(Ve, i, j));
+
+        CalcPve(eval, UtW, &UtY_col.vector, cPar.l_remle_null, cPar.trace_G,
+                cPar.pve_null, cPar.pve_se_null);
+        cPar.PrintSummary();
+
+        // calculate and output residuals
+        if (cPar.a_mode == 5) {
+          gsl_vector *Utu_hat = gsl_vector_alloc(Y->size1);
+          gsl_vector *Ute_hat = gsl_vector_alloc(Y->size1);
+          gsl_vector *u_hat = gsl_vector_alloc(Y->size1);
+          gsl_vector *e_hat = gsl_vector_alloc(Y->size1);
+          gsl_vector *y_hat = gsl_vector_alloc(Y->size1);
+
+          // obtain Utu and Ute
+          gsl_vector_memcpy(y_hat, &UtY_col.vector);
+          gsl_blas_dgemv(CblasNoTrans, -1.0, UtW, &beta.vector, 1.0, y_hat);
+
+          double d, u, e;
+          for (size_t i = 0; i < eval->size; i++) {
+            d = gsl_vector_get(eval, i);
+            u = cPar.l_remle_null * d / (cPar.l_remle_null * d + 1.0) *
+                gsl_vector_get(y_hat, i);
+            e = 1.0 / (cPar.l_remle_null * d + 1.0) * gsl_vector_get(y_hat, i);
+            gsl_vector_set(Utu_hat, i, u);
+            gsl_vector_set(Ute_hat, i, e);
+          }
+
+          // obtain u and e
+          gsl_blas_dgemv(CblasNoTrans, 1.0, U, Utu_hat, 0.0, u_hat);
+          gsl_blas_dgemv(CblasNoTrans, 1.0, U, Ute_hat, 0.0, e_hat);
+
+          // output residuals
+          cPar.WriteVector(u_hat, "residU");
+          cPar.WriteVector(e_hat, "residE");
+
+          gsl_vector_free(u_hat);
+          gsl_vector_free(e_hat);
+          gsl_vector_free(y_hat);
         }
       }
 
-      // obtain Y_hat from fixed effects
-      gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, W_full, B, 0.0, Y_hat);
+      // Fit LMM or mvLMM (w. LOCO)
+      if (cPar.a_mode == 1 || cPar.a_mode == 2 || cPar.a_mode == 3 ||
+          cPar.a_mode == 4) {
+        if (cPar.n_ph == 1) {
+          LMM cLmm;
+          cLmm.CopyFromParam(cPar);
 
-      // obtain H
-      KroneckerSym(G_full, Vg, H_full);
-      for (size_t i = 0; i < G_full->size1; i++) {
-        gsl_matrix_view H_sub = gsl_matrix_submatrix(
-            H_full, i * Ve->size1, i * Ve->size2, Ve->size1, Ve->size2);
-        gsl_matrix_add(&H_sub.matrix, Ve);
+          gsl_vector_view Y_col = gsl_matrix_column(Y, 0);
+          gsl_vector_view UtY_col = gsl_matrix_column(UtY, 0);
+
+          if (!cPar.file_bfile.empty()) {
+            if (cPar.file_gxe.empty()) {
+              cLmm.AnalyzePlink(U, eval, UtW, &UtY_col.vector, W,
+                                &Y_col.vector);
+            } else {
+              cLmm.AnalyzePlinkGXE(U, eval, UtW, &UtY_col.vector, W,
+                                   &Y_col.vector, env);
+            }
+          }
+          // WJA added
+          else if (!cPar.file_oxford.empty()) {
+            cLmm.Analyzebgen(U, eval, UtW, &UtY_col.vector, W, &Y_col.vector);
+          } else {
+            if (cPar.file_gxe.empty()) {
+              cLmm.AnalyzeBimbam(U, eval, UtW, &UtY_col.vector, W,
+                                 &Y_col.vector, cPar.setGWASnps);
+            } else {
+              cLmm.AnalyzeBimbamGXE(U, eval, UtW, &UtY_col.vector, W,
+                                    &Y_col.vector, env);
+            }
+          }
+
+          cLmm.WriteFiles();
+          cLmm.CopyToParam(cPar);
+        } else {
+          MVLMM cMvlmm;
+          cMvlmm.CopyFromParam(cPar);
+
+          if (!cPar.file_bfile.empty()) {
+            if (cPar.file_gxe.empty()) {
+              cMvlmm.AnalyzePlink(U, eval, UtW, UtY);
+            } else {
+              cMvlmm.AnalyzePlinkGXE(U, eval, UtW, UtY, env);
+            }
+          } else if (!cPar.file_oxford.empty()) {
+            cMvlmm.Analyzebgen(U, eval, UtW, UtY);
+          } else {
+            if (cPar.file_gxe.empty()) {
+              cMvlmm.AnalyzeBimbam(U, eval, UtW, UtY);
+            } else {
+              cMvlmm.AnalyzeBimbamGXE(U, eval, UtW, UtY, env);
+            }
+          }
+
+          cMvlmm.WriteFiles();
+          cMvlmm.CopyToParam(cPar);
+        }
       }
-
-      // free matrices
-      gsl_matrix_free(Vg);
-      gsl_matrix_free(Ve);
-      gsl_matrix_free(B);
-      gsl_matrix_free(se_B);
     }
 
-    PRDT cPRDT;
-
-    cPRDT.CopyFromParam(cPar);
-
-    cout << "Predicting Missing Phentypes ... " << endl;
-    time_start = clock();
-    cPRDT.MvnormPrdt(Y_hat, H_full, Y_full);
-    cPar.time_opt = (clock() - time_start) / (double(CLOCKS_PER_SEC) * 60.0);
-
-    cPRDT.WriteFiles(Y_full);
-
+    // release all matrices and vectors
     gsl_matrix_free(Y);
     gsl_matrix_free(W);
+    gsl_matrix_free(B);
+    gsl_matrix_free(se_B);
     gsl_matrix_free(G);
     gsl_matrix_free(U);
     gsl_matrix_free(UtW);
     gsl_matrix_free(UtY);
     gsl_vector_free(eval);
-
-    gsl_matrix_free(Y_full);
-    gsl_matrix_free(Y_hat);
-    gsl_matrix_free(W_full);
-    gsl_matrix_free(G_full);
-    gsl_matrix_free(H_full);
+    gsl_vector_free(env);
   }
+
+
+}
+
+void GEMMA::BatchRun(PARAM &cPar) {
+  clock_t time_begin, time_start;
+  time_begin = clock();
+  cout << "Mode is ";
+  cout << cPar.a_mode;
+
+  // Read Files.
+  cout << "Reading Files ... " << endl;
+  cPar.ReadFiles();
+  if (cPar.error == true) {
+    cout << "error! fail to read files. " << endl;
+    return;
+  }
+  cPar.CheckData();
+  if (cPar.error == true) {
+    cout << "error! fail to check data. " << endl;
+    return;
+  }
+
 
   // Generate Kinship matrix (optionally using LOCO)
   if (cPar.a_mode == 21 || cPar.a_mode == 22) {
@@ -1878,6 +2025,8 @@ void GEMMA::BatchRun(PARAM &cPar) {
     enforce_msg(G, "allocate G"); // just to be sure
 
     time_start = clock();
+
+    /// G is kinship_matrix It calls Param::calcKin which reads geno file from cPar.geno_file
     cPar.CalcKin(G);
 
     cPar.time_G = (clock() - time_start) / (double(CLOCKS_PER_SEC) * 60.0);
@@ -2028,8 +2177,7 @@ void GEMMA::BatchRun(PARAM &cPar) {
   }
 
   // LM.
-  if (cPar.a_mode == 51 || cPar.a_mode == 52 || cPar.a_mode == 53 ||
-      cPar.a_mode == 54) { // Fit LM
+  if (cPar.a_mode == 51 || cPar.a_mode == 52 || cPar.a_mode == 53 ||cPar.a_mode == 54) { // Fit LM
     gsl_matrix *Y = gsl_matrix_alloc(cPar.ni_test, cPar.n_ph);
     gsl_matrix *W = gsl_matrix_alloc(Y->size1, cPar.n_cvt);
 
@@ -2342,8 +2490,8 @@ void GEMMA::BatchRun(PARAM &cPar) {
       }
       // fit multiple variance components
       if (cPar.n_ph == 1) {
-        //		  if (cPar.n_vc==1) {
-        //		  } else {
+        //      if (cPar.n_vc==1) {
+        //      } else {
         gsl_vector_view Y_col = gsl_matrix_column(Y, 0);
         VC cVc;
         cVc.CopyFromParam(cPar);
@@ -2523,9 +2671,16 @@ void GEMMA::BatchRun(PARAM &cPar) {
   }
 
   // LMM or mvLMM or Eigen-Decomposition
-  if (cPar.a_mode == 1 || cPar.a_mode == 2 || cPar.a_mode == 3 ||
-      cPar.a_mode == 4 || cPar.a_mode == 5 ||
-      cPar.a_mode == 31) { // Fit LMM or mvLMM or eigen
+  if (cPar.a_mode == 1 || cPar.a_mode == 2 || cPar.a_mode == 3 || cPar.a_mode == 4 || cPar.a_mode == 5 ||cPar.a_mode == 31) { // Fit LMM or mvLMM or eigen
+
+    //ni_test and ni_ph are passed
+    // create Y, w, b. se_b. U. UtW. uTy, EVAL, env weight
+    // CopyCvtPhen(W, Y, 0)  => load cvt AND phen
+    // copy gxe too env
+    // read kinship matrix G from file
+    // centre G
+    // read weights
+
     gsl_matrix *Y = gsl_matrix_alloc(cPar.ni_test, cPar.n_ph);
     enforce_msg(Y, "allocate Y"); // just to be sure
     gsl_matrix *W = gsl_matrix_alloc(Y->size1, cPar.n_cvt);
@@ -3105,8 +3260,6 @@ void GEMMA::WriteLog(int argc, char **argv, PARAM &cPar) {
 
   outfile << "##" << endl;
   outfile << "## GEMMA Version = " << version << endl;
-  outfile << "## GSL Version   = " << GSL_VERSION << endl;
-  outfile << "## Eigen Version = " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION << endl;
 
   outfile << "##" << endl;
   outfile << "## Command Line Input = ";
@@ -3284,7 +3437,7 @@ void GEMMA::WriteLog(int argc, char **argv, PARAM &cPar) {
   if ((cPar.a_mode == 61 || cPar.a_mode == 62 || cPar.a_mode == 63) &&
       cPar.file_cor.empty() && cPar.file_study.empty() &&
       cPar.file_mstudy.empty()) {
-    //	        outfile<<"## REMLE log-likelihood in the null model =
+    //          outfile<<"## REMLE log-likelihood in the null model =
     //"<<cPar.logl_remle_H0<<endl;
     if (cPar.n_ph == 1) {
       outfile << "## pve estimates = ";

@@ -40,6 +40,8 @@ public:
   void PrintLicense(void);
   void Assign(int argc, char **argv, PARAM &cPar);
   void BatchRun(PARAM &cPar);
+  void kinship(PARAM &cPar);
+  void faster_lmm_d(PARAM & cPar);
   void WriteLog(int argc, char **argv, PARAM &cPar);
 };
 

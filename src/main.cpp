@@ -52,10 +52,6 @@ int main(int argc, char *argv[]) {
 
   cGemma.Assign(argc, argv, cPar);
 
-  if (cPar.faster_lmm_d == true){
-    system("faster_lmm_d");
-  }
-
   ifstream check_dir((cPar.path_out).c_str());
   if (!check_dir) {
     mkdir((cPar.path_out).c_str(), S_IRWXU | S_IRGRP | S_IROTH);
@@ -76,13 +72,24 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  cGemma.BatchRun(cPar);
 
-  if (cPar.error == true) {
-    return EXIT_FAILURE;
+  if (cPar.faster_lmm_d == true){
+
+    cout << cPar.a_mode;
+    cGemma.kinship(cPar);
+    cGemma.faster_lmm_d(cPar);
+
+  }else{
+
+    cout << cPar.a_mode;
+    cGemma.BatchRun(cPar);
+
+    if (cPar.error == true) {
+      return EXIT_FAILURE;
+    }
+
+    cGemma.WriteLog(argc, argv, cPar);
   }
-
-  cGemma.WriteLog(argc, argv, cPar);
 
   return EXIT_SUCCESS;
 }

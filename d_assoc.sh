@@ -1,0 +1,1 @@
+./bin/gemma -g ./example/mouse_hs1940.geno.txt.gz -p ./example/mouse_hs1940.pheno.txt -n 1 -a ./example/mouse_hs1940.anno.txt -k ./test/output/mouse_hs1940.cXX.txt -lmm -o mouse_hs1940_CD8_lmm  -faster_lmm_d
