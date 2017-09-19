@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
   if (cPar.faster_lmm_d == true){
 
     cout << cPar.a_mode;
-    cGemma.kinship(cPar);
+    // cGemma.kinship(cPar);
     cGemma.faster_lmm_d(cPar);
 
   }else{

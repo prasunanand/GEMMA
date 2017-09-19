@@ -1756,7 +1756,7 @@ void GEMMA::faster_lmm_d(PARAM & cPar){
         }
       }
 
-      system(("faster_lmm_d --pheno="+ cPar.file_pheno +" --geno=data/rqtl/recla_geno.csv --kinship=data/rqtl/recla_kinship.csv --test-kinship=true --cmd=rqtl ").c_str());
+      system(("faster_lmm_d --pheno=pheno.dat --kinship="+ cPar.file_kin +" --geno="+ cPar.file_geno +" --covar=covar.dat --test-kinship=true --cmd=rqtl ").c_str());
 
       // eigen-decomposition and calculate trace_G
       cout << "Start Eigen-Decomposition..." << endl;
