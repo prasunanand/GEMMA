@@ -118,6 +118,9 @@ public:
                    double &se, double &p_score);
 };
 
+void CalcUab(const gsl_matrix *UtW, const gsl_vector *Uty, gsl_matrix *Uab);
+void CalcUab(const gsl_matrix *UtW, const gsl_vector *Uty,
+             const gsl_vector *Utx, gsl_matrix *Uab);
 void MatrixCalcLR(const gsl_matrix *U, const gsl_matrix *UtX,
                   const gsl_vector *Uty, const gsl_vector *K_eval,
                   const double l_min, const double l_max, const size_t n_region,

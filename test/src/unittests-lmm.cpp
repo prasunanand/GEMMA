@@ -1,5 +1,6 @@
 #include <catch.hpp>
 #include <iostream>
+#include "gsl/gsl_blas.h"
 #include "gsl/gsl_matrix.h"
 #include "gsl/gsl_permutation.h"
 #include "gsl/gsl_vector.h"
@@ -49,8 +50,11 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
   gsl_matrix *U = gsl_matrix_alloc(Y->size1, Y->size1);
   gsl_matrix *UtW = gsl_matrix_alloc(Y->size1, W->size2);
   gsl_matrix *UtY = gsl_matrix_alloc(Y->size1, Y->size2);
-  gsl_vector *eval = gsl_vector_alloc(Y->size1);
+  gsl_vector *Uty = gsl_vector_alloc(U->size2);
+  gsl_vector *eval = gsl_vector_calloc(Y->size1);
   gsl_vector *ab = gsl_vector_alloc(n_index);
+
+  gsl_blas_dgemv(CblasTrans, 1.0, U, y, 0.0, Uty);
 
   double trace_G = EigenDecomp_Zeroed(G, U, eval, 1);
   
@@ -59,4 +63,24 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
   gsl_matrix_set_zero(Uab);
 
   FUNC_PARAM param0 = {true, ni_test, n_cvt, eval, Uab, ab, 0};
+
+  double l = 6;
+  double beta;
+  double se;
+  double p_wald;
+  double lambda;
+  double logl_H0;
+
+  gsl_vector_view UtY_col = gsl_matrix_column(UtY, 0);
+
+  CalcLambda(func_name, eval, UtW, &UtY_col.vector, l_min, l_max, n_region, lambda, logl_H0);
+
+  CalcUab(UtW, Uty, Uab);
+
+  REQUIRE(logl_H0 == 100);
+
+  double pve, pve_se;
+  CalcPve(eval,  UtW, Uty, lambda, trace_G, pve,  pve_se);
+
+
 }
