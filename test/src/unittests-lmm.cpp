@@ -58,7 +58,6 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
 
   double trace_G = EigenDecomp_Zeroed(G, U, eval, 1);
   
-
   gsl_matrix* Uab = gsl_matrix_alloc(ni_test, n_index);
   gsl_matrix_set_zero(Uab);
 
@@ -82,5 +81,18 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
   double pve, pve_se;
   CalcPve(eval,  UtW, Uty, lambda, trace_G, pve,  pve_se);
 
+  gsl_vector* Hi_eval = gsl_vector_alloc(5);
+  Calcab(W, y, ab);
+
+  gsl_matrix* Pab = gsl_matrix_alloc(ni_test, n_ph);
+  CalcPab(n_cvt, e_mode, Hi_eval, Uab, ab, Pab);
+
+  double dev1_l = LogL_dev1(0, &param0);
+  double dev2_l = LogL_dev2(0, &param0);
+  double dev_f =  LogRL_f(0, &param0);
+  double dev1_r = LogRL_dev1(0, &param0);
+  double dev2_r = LogRL_dev2(0, &param0);
+  LogL_dev12(0, &param0, &dev1_l, &dev2_l);
+  LogRL_dev12(0, &param0, &dev1_r, &dev2_r);
 
 }

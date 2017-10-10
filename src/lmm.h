@@ -117,10 +117,29 @@ public:
   void CalcRLScore(const double &l, const FUNC_PARAM &params, double &beta,
                    double &se, double &p_score);
 };
-
+void Calcab(const gsl_matrix *W, const gsl_vector *y, gsl_vector *ab);
+void Calcab(const gsl_matrix *W, const gsl_vector *y, const gsl_vector *x,
+            gsl_vector *ab);
 void CalcUab(const gsl_matrix *UtW, const gsl_vector *Uty, gsl_matrix *Uab);
 void CalcUab(const gsl_matrix *UtW, const gsl_vector *Uty,
              const gsl_vector *Utx, gsl_matrix *Uab);
+void CalcPab(const size_t n_cvt, const size_t e_mode, const gsl_vector *Hi_eval,
+             const gsl_matrix *Uab, const gsl_vector *ab, gsl_matrix *Pab);
+void CalcPPab(const size_t n_cvt, const size_t e_mode,
+              const gsl_vector *HiHi_eval, const gsl_matrix *Uab,
+              const gsl_vector *ab, const gsl_matrix *Pab, gsl_matrix *PPab);
+void CalcPPPab(const size_t n_cvt, const size_t e_mode,
+               const gsl_vector *HiHiHi_eval, const gsl_matrix *Uab,
+               const gsl_vector *ab, const gsl_matrix *Pab,
+               const gsl_matrix *PPab, gsl_matrix *PPPab);
+double LogL_dev1(double l, void *params);
+double LogL_dev2(double l, void *params);
+double LogRL_f(double l, void *params);
+double LogRL_dev1(double l, void *params);
+double LogRL_dev2(double l, void *params);
+void LogL_dev12(double l, void *params, double *dev1, double *dev2);
+void LogRL_dev12(double l, void *params, double *dev1, double *dev2);
+
 void MatrixCalcLR(const gsl_matrix *U, const gsl_matrix *UtX,
                   const gsl_vector *Uty, const gsl_vector *K_eval,
                   const double l_min, const double l_max, const size_t n_region,
