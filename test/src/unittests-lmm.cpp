@@ -15,7 +15,7 @@ using namespace std;
 
 TEST_CASE( "LMM functions", "[lmm]" ) {
 
-  size_t n_cvt = 2;
+  size_t n_cvt = 3;
   size_t e_mode = 0;
 
   REQUIRE(GetabIndex(4, 9, 2)  == 0 );
@@ -39,7 +39,7 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
   gsl_matrix *G = gsl_matrix_alloc(5,5);
   copy(G_data, G_data+25, G->data);
 
-  gsl_matrix* W = gsl_matrix_alloc(5,5);
+  gsl_matrix* W = gsl_matrix_alloc(5,1);
   gsl_matrix_set_all(W, 1.0);
 
   double y_data[] = {3, 14 ,-5, 18, 6};
@@ -56,11 +56,20 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
 
   gsl_blas_dgemv(CblasTrans, 1.0, U, y, 0.0, Uty);
 
-  double trace_G = EigenDecomp_Zeroed(G, U, eval, 1);
+  double trace_G = EigenDecomp_Zeroed(G, U, eval, 0);
+  REQUIRE( abs(trace_G - 85.2) < 0.001);
   
   gsl_matrix* Uab = gsl_matrix_alloc(ni_test, n_index);
-  gsl_matrix_set_zero(Uab);
 
+  CalcUab(UtW, Uty, Uab);
+  // gsl_matrix_set_zero(Uab);
+  // gsl_matrix_set_all(Uab, 1.0);
+  gsl_vector_set_all(ab, 100.0);
+
+  cout << "ni_test is " << ni_test << endl;
+  cout << "n_cvt is " << n_cvt << endl;
+
+  Calcab(W, y, ab);
   FUNC_PARAM param0 = {true, ni_test, n_cvt, eval, Uab, ab, 0};
 
   double l = 6;
@@ -72,27 +81,22 @@ TEST_CASE( "LMM functions", "[lmm]" ) {
 
   gsl_vector_view UtY_col = gsl_matrix_column(UtY, 0);
 
-  CalcLambda(func_name, eval, UtW, &UtY_col.vector, l_min, l_max, n_region, lambda, logl_H0);
-
-  CalcUab(UtW, Uty, Uab);
-
-  REQUIRE(logl_H0 == 100);
-
-  double pve, pve_se;
-  CalcPve(eval,  UtW, Uty, lambda, trace_G, pve,  pve_se);
-
-  gsl_vector* Hi_eval = gsl_vector_alloc(5);
-  Calcab(W, y, ab);
-
-  gsl_matrix* Pab = gsl_matrix_alloc(ni_test, n_ph);
-  CalcPab(n_cvt, e_mode, Hi_eval, Uab, ab, Pab);
-
-  double dev1_l = LogL_dev1(0, &param0);
+  double dev1_l = LogL_dev1(10, &param0);
+  cout << "dev1_l is " << dev1_l << endl; 
   double dev2_l = LogL_dev2(0, &param0);
+  cout << "dev2_l is " << dev2_l << endl; 
   double dev_f =  LogRL_f(0, &param0);
+  cout << "dev_f is " << dev_f << endl; 
   double dev1_r = LogRL_dev1(0, &param0);
+  cout << "dev1_r is " << dev1_r << endl; 
   double dev2_r = LogRL_dev2(0, &param0);
+  cout << "dev2_r is " << dev2_r << endl; 
   LogL_dev12(0, &param0, &dev1_l, &dev2_l);
   LogRL_dev12(0, &param0, &dev1_r, &dev2_r);
 
+
+  // CalcLambda(func_name, eval, UtW, &UtY_col.vector, l_min, l_max, n_region, lambda, logl_H0);
+
+  double pve, pve_se;
+  // CalcPve(eval,  UtW, Uty, lambda, trace_G, pve,  pve_se);
 }
