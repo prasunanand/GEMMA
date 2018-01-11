@@ -1484,6 +1484,8 @@ bool BimbamKin(const string file_geno, const set<string> ksnps,
   // GSL is faster - and there are even faster methods
   // enforce_gsl(gsl_matrix_transpose(matrix_kin));
 
+  write_matrix(Xlarge, "geno_matrix");
+
   gsl_vector_free(geno);
   gsl_vector_free(geno_miss);
   gsl_matrix_free(Xlarge);
@@ -1493,6 +1495,35 @@ bool BimbamKin(const string file_geno, const set<string> ksnps,
 
   return true;
 }
+
+void write_matrix(const gsl_matrix *matrix_U, const string suffix) {
+  string file_str;
+  string file_out = "gemma_geno";
+  file_str =  "./" + file_out;
+  file_str += ".";
+  file_str += suffix;
+  file_str += ".txt";
+
+  ofstream outfile(file_str.c_str(), ofstream::out);
+  if (!outfile) {
+    cout << "error writing file: " << file_str.c_str() << endl;
+    return;
+  }
+
+  outfile.precision(10);
+
+  for (size_t i = 0; i < matrix_U->size1; ++i) {
+    for (size_t j = 0; j < matrix_U->size2; ++j) {
+      outfile << tab(j) << gsl_matrix_get(matrix_U, i, j);
+    }
+    outfile << endl;
+  }
+
+  outfile.close();
+  outfile.clear();
+  return;
+}
+
 
 bool PlinkKin(const string &file_bed, vector<int> &indicator_snp,
               const int k_mode, const int display_pace,

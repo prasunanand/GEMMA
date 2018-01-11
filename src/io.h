@@ -35,6 +35,7 @@
 using namespace std;
 
 void ProgressBar(string str, double p, double total, double ratio = -1.0);
+void write_matrix(const gsl_matrix *matrix_U, const string suffix);
 
 std::istream &safeGetline(std::istream &is, std::string &t);
 
