@@ -750,7 +750,9 @@ void GEMMA::Assign(int argc, char **argv, PARAM &cPar) {
   string str;
 
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-bfile") == 0 || strcmp(argv[i], "--bfile") == 0 ||
+    if (strcmp(argv[i], "-faster_lmm_d") == 0 || strcmp(argv[i], "--faster_lmm_d") == 0) {
+      cPar.faster_lmm_d = true;
+    } else if (strcmp(argv[i], "-bfile") == 0 || strcmp(argv[i], "--bfile") == 0 ||
         strcmp(argv[i], "-b") == 0) {
       if (argv[i + 1] == NULL || argv[i + 1][0] == '-') {
         continue;

@@ -28,6 +28,7 @@ using namespace std;
 int main(int argc, char *argv[]) {
   GEMMA cGemma;
   PARAM cPar;
+  int faster_lmm_d_status;
 
   gsl_set_error_handler (&gemma_gsl_error_handler);
 
@@ -82,8 +83,15 @@ int main(int argc, char *argv[]) {
   if (cPar.error == true) {
     return EXIT_FAILURE;
   }
-
-  cGemma.BatchRun(cPar);
+  if (cPar.faster_lmm_d == true){
+    cout << "Running Faster_lmm_d!" << endl;
+    faster_lmm_d_status = system(("faster_lmm_d --geno=" + cPar.file_geno + " --kinship=output.txt --pheno=" + cPar.file_pheno + " --cmd=gk").c_str());
+    if(faster_lmm_d_status != 0){
+      cout << "Error in running Faster_lmm_d." << endl;
+    }
+  }else{
+    cGemma.BatchRun(cPar);
+  }
 
   if (cPar.error == true) {
     return EXIT_FAILURE;

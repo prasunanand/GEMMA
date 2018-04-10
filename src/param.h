@@ -258,6 +258,10 @@ public:
                               // proposal distribution (i.e. the
                               // initial LMM or LM analysis).
 
+
+  //faster_lmm_d
+  bool faster_lmm_d;
+
   // Data.
   // Vector recording all phenotypes (NA replaced with -9).
   vector<vector<double>> pheno;
